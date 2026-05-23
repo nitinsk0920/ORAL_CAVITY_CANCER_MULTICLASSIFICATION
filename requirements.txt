@@ -6,7 +6,5 @@ langchain
 torch
 torchvision
 pillow
-opencv-python
-streamlit
-requests
+opencv-python-headless
 numpy
