@@ -8,8 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 
-from workflow import run_pipeline
-
 app = FastAPI(
     title="Oral Cancer Detection API",
     description="4-class: Normal / Benign / Leukoplakia / OSCC",
@@ -60,6 +58,8 @@ async def analyse(
     file:       UploadFile = File(...),
     patient_id: str        = Form(default="P001"),
 ):
+    from workflow import run_pipeline
+
     image_bytes = await file.read()
     result = run_pipeline(
         image_bytes=image_bytes,
