@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-multipart
+langgraph
+langchain
+torch
+torchvision
+pillow
+opencv-python
+streamlit
+requests
+numpy

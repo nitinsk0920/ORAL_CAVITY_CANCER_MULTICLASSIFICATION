@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oral Cancer AI — System Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg:        #05080f;
+    --panel:     #0b1220;
+    --border:    #1a2540;
+    --glow-blue: #00b4ff;
+    --glow-teal: #00e5c0;
+    --glow-gold: #ffb800;
+    --glow-red:  #ff4d6d;
+    --glow-purple:#a855f7;
+    --glow-green: #22c55e;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --mono:      'Space Mono', monospace;
+    --sans:      'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Grid bg ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,180,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,180,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page {
+    position: relative; z-index: 1;
+    padding: 32px 28px 48px;
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+
+  /* ── Title bar ── */
+  .title-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--glow-blue);
+    padding-bottom: 14px;
+    margin-bottom: 28px;
+  }
+
+  .title-bar h1 {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--glow-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .title-bar .sub {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.7;
+  }
+
+  /* ── Project banner ── */
+  .proj-banners {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .proj-banner {
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .proj-banner.p1 {
+    background: rgba(0,180,255,0.08);
+    border: 1px solid rgba(0,180,255,0.4);
+    color: var(--glow-blue);
+  }
+
+  .proj-banner.p2 {
+    background: rgba(0,229,192,0.08);
+    border: 1px solid rgba(0,229,192,0.4);
+    color: var(--glow-teal);
+  }
+
+  .dot { width:8px; height:8px; border-radius:50%; }
+  .dot.blue   { background: var(--glow-blue);   box-shadow: 0 0 6px var(--glow-blue); }
+  .dot.teal   { background: var(--glow-teal);   box-shadow: 0 0 6px var(--glow-teal); }
+
+  /* ── Rows ── */
+  .row-label {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    padding: 8px 0;
+    white-space: nowrap;
+  }
+
+  .arch-row {
+    display: flex;
+    gap: 0;
+    margin-bottom: 10px;
+  }
+
+  .row-tag {
+    width: 36px;
+    min-width: 36px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: 6px 0 0 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .row-content {
+    flex: 1;
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    background: rgba(11,18,32,0.6);
+    border: 1px solid var(--border);
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .card.blue::before   { background: var(--glow-blue); }
+  .card.teal::before   { background: var(--glow-teal); }
+  .card.gold::before   { background: var(--glow-gold); }
+  .card.red::before    { background: var(--glow-red); }
+  .card.purple::before { background: var(--glow-purple); }
+  .card.green::before  { background: var(--glow-green); }
+  .card.both::before   { background: linear-gradient(90deg, var(--glow-blue), var(--glow-teal)); }
+
+  .card-title {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 7px;
+  }
+
+  .card.blue   .card-title { color: var(--glow-blue); }
+  .card.teal   .card-title { color: var(--glow-teal); }
+  .card.gold   .card-title { color: var(--glow-gold); }
+  .card.red    .card-title { color: var(--glow-red); }
+  .card.purple .card-title { color: var(--glow-purple); }
+  .card.green  .card-title { color: var(--glow-green); }
+  .card.both   .card-title { color: var(--glow-blue); }
+
+  .items {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .item {
+    font-size: 0.69rem;
+    color: #94a3b8;
+    line-height: 1.4;
+    padding-left: 10px;
+    position: relative;
+  }
+
+  .item::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: #334155;
+    font-size: 0.6rem;
+  }
+
+  .item b { color: var(--text); font-weight: 600; }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    font-weight: 700;
+    margin-top: 5px;
+    margin-right: 3px;
+  }
+
+  .badge.p1 { background: rgba(0,180,255,0.15); color: var(--glow-blue); border: 1px solid rgba(0,180,255,0.3); }
+  .badge.p2 { background: rgba(0,229,192,0.15); color: var(--glow-teal); border: 1px solid rgba(0,229,192,0.3); }
+  .badge.both { background: rgba(168,85,247,0.15); color: var(--glow-purple); border: 1px solid rgba(168,85,247,0.3); }
+
+  /* ── Arrow ── */
+  .arrow {
+    text-align: center;
+    font-size: 1rem;
+    color: #1e3a5f;
+    margin: 2px 0;
+    letter-spacing: 2px;
+  }
+
+  /* ── Safety row ── */
+  .safety-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .safety-item {
+    background: var(--panel);
+    border: 1px solid #1f2d48;
+    border-top: 2px solid;
+    border-radius: 6px;
+    padding: 9px 11px;
+  }
+
+  .safety-item.gold  { border-top-color: var(--glow-gold); }
+  .safety-item.red   { border-top-color: var(--glow-red); }
+  .safety-item.blue  { border-top-color: var(--glow-blue); }
+  .safety-item.green { border-top-color: var(--glow-green); }
+
+  .safety-label {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 5px;
+  }
+
+  .safety-item.gold  .safety-label { color: var(--glow-gold); }
+  .safety-item.red   .safety-label { color: var(--glow-red); }
+  .safety-item.blue  .safety-label { color: var(--glow-blue); }
+  .safety-item.green .safety-label { color: var(--glow-green); }
+
+  /* ── Output row ── */
+  .output-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+
+  .out-card {
+    background: rgba(30,58,95,0.3);
+    border: 1px solid #1e3a5f;
+    border-radius: 6px;
+    padding: 9px 11px;
+  }
+
+  .out-card-title {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--glow-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 5px;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+    padding: 12px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .legend-title {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-right: 4px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.67rem;
+    color: #94a3b8;
+  }
+
+  .legend-line {
+    width: 20px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  /* ── Grid layouts per row ── */
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .grid-2-3 { grid-template-columns: 2fr 3fr; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Title Bar -->
+  <div class="title-bar">
+    <h1>⬡ System Architecture: Oral Cancer AI — Multi-Project</h1>
+    <div class="sub">
+      Deep Learning · LangGraph · FastAPI · Streamlit<br>
+      DenseNet169 · BioMedCLIP · Transfer Learning
+    </div>
+  </div>
+
+  <!-- Project Banners -->
+  <div class="proj-banners">
+    <div class="proj-banner p1">
+      <div class="dot blue"></div>
+      Project 1 — 3-Class: Normal · OSCC · Leukoplakia &nbsp;|&nbsp; DenseNet169 + BioMedCLIP VLM
+    </div>
+    <div class="proj-banner p2">
+      <div class="dot teal"></div>
+      Project 2 — 4-Class: Normal · OSCC · Leukoplakia · Benign &nbsp;|&nbsp; DenseNet169 (94%+)
+    </div>
+  </div>
+
+  <!-- ROW 1: DATA SOURCES -->
+  <div class="arch-row">
+    <div class="row-tag" style="background:rgba(0,180,255,0.05); border-color:rgba(0,180,255,0.2);">
+      <span class="row-label" style="color:rgba(0,180,255,0.6);">Data Sources</span>
+    </div>
+    <div class="row-content" style="grid-template-columns: repeat(5,1fr);">
+
+      <div class="card blue">
+        <div class="card-title">Oral Cancer Dataset</div>
+        <div class="items">
+          <div class="item"><b>~950 images</b></div>
+          <div class="item">CANCER / NON CANCER</div>
+          <div class="item">Kaggle · zaidpy</div>
+        </div>
+        <div><span class="badge p1">P1</span><span class="badge p2">P2</span></div>
+      </div>
+
+      <div class="card blue">
+        <div class="card-title">Histopathology Dataset</div>
+        <div class="items">
+          <div class="item"><b>1,224 images</b></div>
+          <div class="item">Normal / OSCC</div>
+          <div class="item">Kaggle · histopathological</div>
+        </div>
+        <div><span class="badge p1">P1</span><span class="badge p2">P2</span></div>
+      </div>
+
+      <div class="card blue">
+        <div class="card-title">NDB-UFES Dataset</div>
+        <div class="items">
+          <div class="item"><b>237 images</b></div>
+          <div class="item">OSCC · Leukoplakia</div>
+          <div class="item">Mendeley · UFES Brazil</div>
+        </div>
+        <div><span class="badge p1">P1</span><span class="badge p2">P2</span></div>
+      </div>
+
+      <div class="card teal">
+        <div class="card-title">Gobara Oral Lesions</div>
+        <div class="items">
+          <div class="item"><b>Multi-class images</b></div>
+          <div class="item">Normal · Benign · OPMD · Cancer</div>
+          <div class="item">Kaggle · mohamedgobara</div>
+        </div>
+        <div><span class="badge p2">P2</span></div>
+      </div>
+
+      <div class="card teal">
+        <div class="card-title">Roboflow Leukoplakia</div>
+        <div class="items">
+          <div class="item"><b>YOLO annotated</b></div>
+          <div class="item">Leukoplakia images</div>
+          <div class="item">Roboflow Universe</div>
+        </div>
+        <div><span class="badge p2">P2</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- ROW 2: DATA PIPELINE -->
+  <div class="arch-row">
+    <div class="row-tag" style="background:rgba(0,229,192,0.05); border-color:rgba(0,229,192,0.2);">
+      <span class="row-label" style="color:rgba(0,229,192,0.6);">Data Pipeline</span>
+    </div>
+    <div class="row-content" style="grid-template-columns: repeat(4,1fr);">
+
+      <div class="card teal">
+        <div class="card-title">Dataset Merge</div>
+        <div class="items">
+          <div class="item">merge_and_balance.py</div>
+          <div class="item">Class label mapping</div>
+          <div class="item">Filename deduplication</div>
+          <div class="item">ImageFolder structure</div>
+        </div>
+      </div>
+
+      <div class="card teal">
+        <div class="card-title">Offline Augmentation</div>
+        <div class="items">
+          <div class="item">PIL-based · 10 recipes</div>
+          <div class="item"><b>×4–×6</b> per original</div>
+          <div class="item">Flip · Rotate · Crop</div>
+          <div class="item">Color jitter · Blur</div>
+        </div>
+      </div>
+
+      <div class="card teal">
+        <div class="card-title">Class Balancing</div>
+        <div class="items">
+          <div class="item">Oversampling minority classes</div>
+          <div class="item">TARGET = 3,000–4,000 / class</div>
+          <div class="item">P1: 12,000 total (3-class)</div>
+          <div class="item">P2: 12,000 total (4-class)</div>
+        </div>
+      </div>
+
+      <div class="card teal">
+        <div class="card-title">Online Transforms</div>
+        <div class="items">
+          <div class="item">torchvision.transforms</div>
+          <div class="item">RandomCrop · GaussianBlur</div>
+          <div class="item">RandomErasing · Perspective</div>
+          <div class="item">Stratified 70/15/15 split</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- ROW 3: AI MODELS -->
+  <div class="arch-row">
+    <div class="row-tag" style="background:rgba(168,85,247,0.05); border-color:rgba(168,85,247,0.2);">
+      <span class="row-label" style="color:rgba(168,85,247,0.6);">AI Models</span>
+    </div>
+    <div class="row-content" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+
+      <div class="card purple">
+        <div class="card-title">DenseNet169 — 3-Class</div>
+        <div class="items">
+          <div class="item"><b>14M params</b> · ImageNet init</div>
+          <div class="item">Classes: Normal · OSCC · Leukoplakia</div>
+          <div class="item">Val Acc: <b>99.72%</b></div>
+          <div class="item">Test Acc: <b>99.16%</b>  F1: 0.9916</div>
+          <div class="item">ROC-AUC: 0.9987</div>
+          <div class="item">Phase 1: head · Phase 2: denseblock2+</div>
+        </div>
+        <div><span class="badge p1">P1</span></div>
+      </div>
+
+      <div class="card purple">
+        <div class="card-title">BioMedCLIP VLM — 3-Class</div>
+        <div class="items">
+          <div class="item"><b>86M params</b> · 15M medical pairs</div>
+          <div class="item">ViT-B/16 + PubMedBERT</div>
+          <div class="item">Joint Loss: CE 70% + InfoNCE 30%</div>
+          <div class="item">Val Acc: <b>99.10%</b></div>
+          <div class="item">Test Acc: <b>98.30%</b>  F1: 0.9830</div>
+          <div class="item">Token len: 256 · Embed: 512</div>
+        </div>
+        <div><span class="badge p1">P1</span></div>
+      </div>
+
+      <div class="card teal">
+        <div class="card-title">DenseNet169 — 4-Class</div>
+        <div class="items">
+          <div class="item"><b>14M params</b> · AMP + cuDNN</div>
+          <div class="item">Normal · OSCC · Leuko · Benign</div>
+          <div class="item">Test Acc: <b>94–95%</b></div>
+          <div class="item">Channels-last memory format</div>
+          <div class="item">Label smooth: 0.10</div>
+          <div class="item">Phase 2: denseblock3+</div>
+        </div>
+        <div><span class="badge p2">P2</span></div>
+      </div>
+
+      <div class="card gold">
+        <div class="card-title">Grad-CAM Explainability</div>
+        <div class="items">
+          <div class="item">Hook: denseblock4 last layer</div>
+          <div class="item">Gradient-weighted activation map</div>
+          <div class="item">JET colormap overlay (α=0.45)</div>
+          <div class="item">Base64 encoded for API transfer</div>
+          <div class="item">Pre-operative visual analysis</div>
+        </div>
+        <div><span class="badge both">P1 + P2</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- ROW 4: LANGGRAPH WORKFLOW -->
+  <div class="arch-row">
+    <div class="row-tag" style="background:rgba(255,184,0,0.05); border-color:rgba(255,184,0,0.2);">
+      <span class="row-label" style="color:rgba(255,184,0,0.6);">LangGraph Workflow</span>
+    </div>
+    <div class="row-content" style="grid-template-columns: repeat(6,1fr);">
+
+      <div class="card gold">
+        <div class="card-title">Node 1 · Preprocess</div>
+        <div class="items">
+          <div class="item">Validate image bytes</div>
+          <div class="item">PIL decode → RGB</div>
+          <div class="item">Resize 224×224</div>
+          <div class="item">Normalize ImageNet</div>
+        </div>
+      </div>
+
+      <div class="card gold">
+        <div class="card-title">Node 2 · DenseNet</div>
+        <div class="items">
+          <div class="item">Classify input image</div>
+          <div class="item">Softmax probabilities</div>
+          <div class="item">Run Grad-CAM hook</div>
+          <div class="item">Return class + confidence</div>
+        </div>
+      </div>
+
+      <div class="card gold">
+        <div class="card-title">Node 3 · Router</div>
+        <div class="items">
+          <div class="item">Normal/Benign → <b>low_risk</b></div>
+          <div class="item">Leuko/OSCC → <b>high_risk</b></div>
+          <div class="item">Conditional edge dispatch</div>
+          <div class="item">LangGraph StateGraph</div>
+        </div>
+      </div>
+
+      <div class="card gold">
+        <div class="card-title">Node 4a · Low Risk</div>
+        <div class="items">
+          <div class="item">Brief clinical note</div>
+          <div class="item">Monitoring schedule</div>
+          <div class="item">P1: BioMedCLIP inference</div>
+          <div class="item">P2: DenseNet description</div>
+        </div>
+      </div>
+
+      <div class="card gold">
+        <div class="card-title">Node 4b · High Risk</div>
+        <div class="items">
+          <div class="item">Detailed clinical report</div>
+          <div class="item">Invasive pattern notes</div>
+          <div class="item">P1: BioMedCLIP detailed</div>
+          <div class="item">Biopsy / staging notes</div>
+        </div>
+      </div>
+
+      <div class="card gold">
+        <div class="card-title">Node 5 · Risk Score</div>
+        <div class="items">
+          <div class="item">Score 1–10 per class</div>
+          <div class="item">Structured PDF report</div>
+          <div class="item">Consensus + recommendation</div>
+          <div class="item">Download as .txt</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- ROW 5: BACKEND + SAFETY -->
+  <div class="arch-row">
+    <div class="row-tag" style="background:rgba(255,77,109,0.05); border-color:rgba(255,77,109,0.2);">
+      <span class="row-label" style="color:rgba(255,77,109,0.6);">Backend · Safety</span>
+    </div>
+    <div class="row-content" style="grid-template-columns: repeat(4,1fr);">
+
+      <div class="card red">
+        <div class="card-title">FastAPI Backend</div>
+        <div class="items">
+          <div class="item"><b>POST /analyse</b> — image + patient_id</div>
+          <div class="item"><b>GET /health</b> — model status</div>
+          <div class="item">CORSMiddleware enabled</div>
+          <div class="item">Pydantic response schema</div>
+          <div class="item">uvicorn ASGI server</div>
+        </div>
+        <div><span class="badge both">P1 + P2</span></div>
+      </div>
+
+      <div class="card red">
+        <div class="card-title">Model Safety</div>
+        <div class="items">
+          <div class="item">CpuUnpickler — GPU→CPU remap</div>
+          <div class="item">Label smoothing: 0.10</div>
+          <div class="item">Confidence threshold display</div>
+          <div class="item">Unknown class guard</div>
+          <div class="item">Error node in LangGraph</div>
+        </div>
+        <div><span class="badge both">P1 + P2</span></div>
+      </div>
+
+      <div class="card red">
+        <div class="card-title">Risk Validation</div>
+        <div class="items">
+          <div class="item">Score 1 → Normal (LOW)</div>
+          <div class="item">Score 3 → Benign (LOW)</div>
+          <div class="item">Score 6 → Leukoplakia (MEDIUM)</div>
+          <div class="item">Score 9 → OSCC (HIGH)</div>
+          <div class="item">Urgency flags per level</div>
+        </div>
+        <div><span class="badge both">P1 + P2</span></div>
+      </div>
+
+      <div class="card red">
+        <div class="card-title">Report Generation</div>
+        <div class="items">
+          <div class="item">Structured text report</div>
+          <div class="item">Patient ID + date + findings</div>
+          <div class="item">Probability table per class</div>
+          <div class="item">Grad-CAM heatmap download</div>
+          <div class="item">Clinical disclaimer footer</div>
+        </div>
+        <div><span class="badge both">P1 + P2</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- ROW 6: FRONTEND OUTPUT -->
+  <div class="arch-row">
+    <div class="row-tag" style="background:rgba(34,197,94,0.05); border-color:rgba(34,197,94,0.2);">
+      <span class="row-label" style="color:rgba(34,197,94,0.6);">Output · UI</span>
+    </div>
+    <div class="row-content" style="grid-template-columns: repeat(5,1fr);">
+
+      <div class="card green">
+        <div class="card-title">Streamlit Frontend</div>
+        <div class="items">
+          <div class="item">Doctor-facing UI</div>
+          <div class="item">Patient ID input</div>
+          <div class="item">Image upload widget</div>
+          <div class="item">API health indicator</div>
+        </div>
+        <div><span class="badge both">P1 + P2</span></div>
+      </div>
+
+      <div class="card green">
+        <div class="card-title">Visual Results</div>
+        <div class="items">
+          <div class="item">Original image panel</div>
+          <div class="item">Grad-CAM overlay panel</div>
+          <div class="item">Probability bar charts</div>
+          <div class="item">Risk score gauge (1–10)</div>
+        </div>
+        <div><span class="badge both">P1 + P2</span></div>
+      </div>
+
+      <div class="card green">
+        <div class="card-title">Clinical Output</div>
+        <div class="items">
+          <div class="item">Risk banner (HIGH/MED/LOW)</div>
+          <div class="item">Clinical description panel</div>
+          <div class="item">Recommendation callout</div>
+          <div class="item">Route taken display</div>
+        </div>
+        <div><span class="badge both">P1 + P2</span></div>
+      </div>
+
+      <div class="card green">
+        <div class="card-title">Download Center</div>
+        <div class="items">
+          <div class="item">⬇ Clinical report (.txt)</div>
+          <div class="item">⬇ Grad-CAM heatmap (.jpg)</div>
+          <div class="item">Patient ID in filename</div>
+          <div class="item">Timestamped reports</div>
+        </div>
+        <div><span class="badge both">P1 + P2</span></div>
+      </div>
+
+      <div class="card blue">
+        <div class="card-title">Kaggle Training Env</div>
+        <div class="items">
+          <div class="item">Tesla P100 · 16GB GPU</div>
+          <div class="item">PyTorch 2.10 + CUDA 12.8</div>
+          <div class="item">cuDNN benchmark mode</div>
+          <div class="item">AMP GradScaler (ViT only)</div>
+          <div class="item">.pkl checkpoint export</div>
+        </div>
+        <div><span class="badge both">P1 + P2</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <span class="legend-title">Legend:</span>
+    <div class="legend-item">
+      <div class="legend-line" style="background:var(--glow-blue)"></div>
+      Data / Infrastructure
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background:var(--glow-teal)"></div>
+      Data Pipeline
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background:var(--glow-purple)"></div>
+      AI Models
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background:var(--glow-gold)"></div>
+      LangGraph Workflow
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background:var(--glow-red)"></div>
+      Backend / Safety
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background:var(--glow-green)"></div>
+      Output / UI
+    </div>
+    <div style="margin-left:auto; display:flex; gap:12px;">
+      <div class="legend-item"><span class="badge p1">P1</span> &nbsp;3-Class Project</div>
+      <div class="legend-item"><span class="badge p2">P2</span> &nbsp;4-Class Project</div>
+      <div class="legend-item"><span class="badge both">P1+P2</span> &nbsp;Shared</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
