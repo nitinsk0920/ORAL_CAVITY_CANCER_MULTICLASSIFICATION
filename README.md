@@ -478,6 +478,7 @@ frontend/node_modules/
 frontend/dist/
 .env
 ```
+## Website link (Wait till the status shows Online and then we can test by uploading images):  https://oral-cavity-cancer-multiclassification-1.onrender.com
 
 ## Safety and Limitations
 
